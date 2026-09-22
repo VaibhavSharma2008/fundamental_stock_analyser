@@ -3,9 +3,20 @@
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+from enum import Enum
 
 from .period import Period
 from .stock import Stock
+
+
+class ObservationStatus(str, Enum):
+    """Availability state for a normalized financial fact."""
+
+    AVAILABLE = "available"
+    MISSING = "missing"
+    NOT_APPLICABLE = "not_applicable"
+    UNDEFINED = "undefined"
+    INVALID = "invalid"
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,6 +31,7 @@ class FinancialObservation:
     value: Decimal | None
     period: Period
     source: str
+    status: ObservationStatus = ObservationStatus.AVAILABLE
     currency: str | None = None
     retrieved_at: datetime | None = None
 
@@ -27,6 +39,12 @@ class FinancialObservation:
         _require_text(self.metric, "metric")
         _require_period(self.period)
         _require_text(self.source, "source")
+        if not isinstance(self.status, ObservationStatus):
+            raise TypeError("status must be an ObservationStatus")
+        if self.status is ObservationStatus.AVAILABLE and self.value is None:
+            raise ValueError("available observations require a value")
+        if self.status is not ObservationStatus.AVAILABLE and self.value is not None:
+            raise ValueError("unavailable observations must not contain a value")
 
 
 def _require_text(value: str, field_name: str) -> None:

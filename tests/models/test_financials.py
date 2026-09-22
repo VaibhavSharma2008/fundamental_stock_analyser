@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from fundamental_analysis.models.financials import FinancialObservation
+from fundamental_analysis.models.financials import FinancialObservation, ObservationStatus
 from fundamental_analysis.models.period import Period
 from fundamental_analysis.models.stock import Exchange, Stock
 
@@ -36,9 +36,57 @@ def test_financial_observation_allows_an_unavailable_value(reliance: Stock) -> N
         value=None,
         period=Period.annual(2025),
         source="provider_x",
+        status=ObservationStatus.MISSING,
     )
 
     assert observation.value is None
+    assert observation.status is ObservationStatus.MISSING
+
+
+@pytest.mark.parametrize(
+    "metric",
+    [
+        "revenue",
+        "ebitda",
+        "ebit",
+        "pat",
+        "eps",
+        "equity",
+        "debt",
+        "cash",
+        "receivables",
+        "inventory",
+        "payables",
+        "cfo",
+        "capex",
+        "interest_expense",
+        "shares_outstanding",
+    ],
+)
+def test_financial_observation_can_represent_supported_underlying_facts(
+    reliance: Stock,
+    metric: str,
+) -> None:
+    observation = FinancialObservation(
+        stock=reliance,
+        metric=metric,
+        value=Decimal("1"),
+        period=Period.annual(2025),
+        source="provider_x",
+    )
+
+    assert observation.metric == metric
+
+
+def test_financial_observation_requires_an_explicit_missing_status(reliance: Stock) -> None:
+    with pytest.raises(ValueError, match="available observations"):
+        FinancialObservation(
+            stock=reliance,
+            metric="revenue",
+            value=None,
+            period=Period.annual(2025),
+            source="provider_x",
+        )
 
 
 @pytest.mark.parametrize("field,value", [("metric", ""), ("period", "FY2025"), ("source", "")])
